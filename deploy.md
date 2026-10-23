@@ -310,7 +310,7 @@ Fastest way to get a public demo.
 
 ⚠️ **Caveats for this option:**
 
-- **Python version is pinned to 3.12** in `.streamlit/config.toml`. Streamlit Cloud defaults to the newest Python (3.13+), where the stdlib `audioop` module was removed — `pydub` still imports it and the app dies with `ModuleNotFoundError: audioop` at startup. Don't remove the pin until `pydub` is upgraded/replaced.
+- The stdlib `audioop` module was removed in Python 3.13+, which breaks `pydub` (the audio pipeline). `requirements.txt` installs the **`audioop-lts` backport** on 3.13+ so the app works on Streamlit Cloud's default Python (currently 3.14). If you prefer a known-good interpreter instead, delete and redeploy the app selecting **Python 3.12** under *Advanced settings* — that is the only place the version can be chosen (`.streamlit/config.toml` cannot set it; Streamlit removed that option).
 - Community Cloud has ~1 GB RAM — use `WHISPER_MODEL=tiny` (or `base`). `small` may run out of memory on long recordings.
 - Model caches are **not persistent** across restarts → slower cold starts.
 - Ephemeral disk → `vector_db` resets on restart (acceptable; it is rebuilt per analysis anyway).
@@ -414,7 +414,8 @@ Keep `.env` out of the way of `git pull` (it is git-ignored, so it will never be
 | Streamlit loads but UI is blank/spins behind nginx | Missing websocket upgrade headers | Copy the `proxy_set_header Upgrade/Connection` block exactly |
 | `Killed` / OOM on long videos | Too little RAM for torch+Whisper | Use `WHISPER_MODEL=tiny`/`base`, add swap, or raise `MemoryMax` |
 | First request takes minutes | Models downloading | Pre-warm at build time (Section 5) or bake into image |
-| `ModuleNotFoundError: audioop` (or `pyaudioop`) on Streamlit Cloud | Cloud ran Python 3.13+, where stdlib `audioop` was removed; `pydub` needs it | Keep the `pythonVersion = "3.12"` pin in `.streamlit/config.toml` |
+| `ModuleNotFoundError: audioop` (or `pyaudioop`) on Streamlit Cloud | Cloud ran Python 3.13+, where stdlib `audioop` was removed; `pydub` needs it | `requirements.txt` installs `audioop-lts` on 3.13+, or pick Python 3.12 in *Advanced settings* when deploying |
+| `Failed to load secrets: ... Invalid value (at line N, column M)` | Streamlit Cloud `secrets.toml` has invalid TOML — string values must be double-quoted | In *App settings → Secrets*: `GROQ_API_KEY = "gsk_..."` (quotes required) |
 | `yt-dlp` HTTP 403 / download errors | YouTube changed; stale yt-dlp | `pip install -U yt-dlp` and restart |
 | Port unreachable | Firewall | Open 8501 (direct) or 80/443 (nginx) in `ufw`/cloud security group |
 | Health check fails right after start | Slow model load | Increase `--start-period` / `RestartSec`; check `journalctl` |

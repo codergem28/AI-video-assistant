@@ -6,6 +6,11 @@ yt-dlp>=2024.4.9                  # Download audio from YouTube URLs
 pydub>=0.25.1                     # Audio file manipulation / format conversion
 ffmpeg-python>=0.2.0              # FFmpeg bindings (FFmpeg binary must be installed separately)
 
+# ── Python 3.13+ compatibility ────────────────────────────────────────────────────
+# stdlib `audioop` was removed in Python 3.13; pydub still imports it at module
+# load. audioop-lts provides it again (Streamlit Cloud defaults to Python 3.14).
+audioop-lts>=0.2.2 ; python_version >= "3.13"
+
 # ── Speech-to-Text (local Whisper) ────────────────────────────────────────────
 openai-whisper>=20231117          # OpenAI Whisper (runs locally)
 torch>=2.2.0                      # PyTorch backend for Whisper

@@ -1,5 +1,0 @@
-# Streamlit Community Cloud reads this to choose the interpreter version.
-# pydub (audio pipeline) still imports the stdlib `audioop` module, which was
-# removed in Python 3.13 — stay on 3.12 until pydub is replaced/updated.
-[server]
-pythonVersion = "3.12"
