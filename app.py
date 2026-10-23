@@ -1,10 +1,9 @@
 import streamlit as st
 import time
 from dotenv import load_dotenv
-from utils.audio_processor import process_input
+from utils.audio_processor import process_input,cleanup_files
 from core.transcriber import transcribe_all
-from core.summarizer import summarize, generate_title
-from core.extractor import extract_action_items, extract_key_decisions, extract_questions
+from core.analyzer import analyze
 from core.rag_engine import build_rag_chain, ask_question
 
 load_dotenv()
@@ -384,21 +383,23 @@ if run_btn:
             update_step("audio", "done")
 
             update_step("transcript", "active")
-            transcript = transcribe_all(chunks, language)
+            try:
+                transcript = transcribe_all(chunks, language)
+            finally:
+                cleanup_files(chunks)  # delete the temp audio even if transcription fails
             update_step("transcript", "done")
 
             update_step("title", "active")
-            title = generate_title(transcript)
-            update_step("title", "done")
-
             update_step("summary", "active")
-            summary = summarize(transcript)
-            update_step("summary", "done")
-
             update_step("extract", "active")
-            action_items  = extract_action_items(transcript)
-            decisions     = extract_key_decisions(transcript)
-            questions     = extract_questions(transcript)
+            report = analyze(transcript)
+            title = report["title"]
+            summary = report["summary"]
+            action_items = report["action_items"]
+            decisions = report["key_decisions"]
+            questions = report["open_questions"]
+            update_step("title", "done")
+            update_step("summary", "done")
             update_step("extract", "done")
 
             update_step("rag", "active")
@@ -449,10 +450,33 @@ if st.session_state.result:
             <div class="card-content">{r['summary']}</div>
         </div>""", unsafe_allow_html=True)
 
-    with col2:
-        with st.expander("📝 Full Transcript", expanded=False):
+        with col2:
+         with st.expander("📝 Full Transcript", expanded=False):
             st.markdown(f'<div class="transcript-box">{r["transcript"]}</div>', unsafe_allow_html=True)
 
+         st.download_button(
+            "⬇️ Download transcript (.txt)",
+            data=r["transcript"],
+            file_name="transcript.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
+
+         report = (
+            f"# {r['title']}\n\n"
+            f"## Summary\n{r['summary']}\n\n"
+            f"## Action Items\n{r['action_items']}\n\n"
+            f"## Key Decisions\n{r['key_decisions']}\n\n"
+            f"## Open Questions\n{r['open_questions']}\n\n"
+            f"## Transcript\n{r['transcript']}\n"
+        )
+         st.download_button(
+            "⬇️ Download full report (.md)",
+            data=report,
+            file_name="meeting_report.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
     # Second row: action items | decisions | questions
     c1, c2, c3 = st.columns(3, gap="medium")
 

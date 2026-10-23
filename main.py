@@ -1,42 +1,35 @@
 from dotenv import load_dotenv
-from utils.audio_processor import process_input
+from utils.audio_processor import process_input,cleanup_files
 from core.transcriber import transcribe_all
-from core.summarizer import summarize, generate_title
-from core.extractor import extract_action_items, extract_key_decisions, extract_questions
+from core.analyzer import analyze
 from core.rag_engine import build_rag_chain, ask_question
 
 
 load_dotenv()
 
-def run_pipeline(source :str, language :str = "english") -> dict:
+def run_pipeline(source: str, language: str = "english") -> dict:
     print("starting AI Video Assistant")
 
     chunks = process_input(source)
+    try:
+        transcript = transcribe_all(chunks, language)
+    finally:
+        cleanup_files(chunks)  # deletes the audio even if transcription fails
 
-    transcript = transcribe_all(chunks,language)
     print(f"raw transcription (first 300 characters ) {transcript[:300]}")
 
-    title = generate_title(transcript)
-
-    summary = summarize(transcript)
-
-    action_item = extract_action_items(transcript)
-
-    decisions = extract_key_decisions(transcript)
-    questions = extract_questions(transcript)
-    
+    report = analyze(transcript)
     rag_chain = build_rag_chain(transcript)
 
     return {
-        "title": title,
+        "title": report["title"],
         "transcript": transcript,
-        "summary": summary,
-        "action_items": action_item,
-        "key_decisions": decisions,
-        "open_questions": questions,
+        "summary": report["summary"],
+        "action_items": report["action_items"],
+        "key_decisions": report["key_decisions"],
+        "open_questions": report["open_questions"],
         "rag_chain": rag_chain,
     }
-
 if __name__ == "__main__":
     # CLI entry point
     source = input("Enter YouTube URL or local file path: ").strip()
