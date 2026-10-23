@@ -29,7 +29,7 @@ venv\Scripts\activate
 # macOS/Linux:
 source venv/bin/activate
 
-pip install -r Requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Configure your API key (.env)
@@ -81,7 +81,7 @@ core/
   extractor.py          # Legacy per-section extractors
 utils/
   audio_processor.py    # Download / extract / chunk audio
-Requirements.txt
+requirements.txt
 ```
 
 ## Troubleshooting
