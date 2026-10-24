@@ -6,6 +6,27 @@ import yt_dlp
 from pydub import AudioSegment
 
 
+def _ensure_ffmpeg() -> None:
+    """Make sure ffmpeg/ffprobe are reachable on PATH.
+
+    System installs (local dev, VPS, Docker) are preferred. On hosts without
+    them — e.g. Streamlit Community Cloud, where the apt.txt step may not have
+    installed packages — fall back to the static-ffmpeg pip package, which
+    bundles prebuilt binaries and adds them to PATH on first use.
+    """
+    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+        return
+    try:
+        import static_ffmpeg
+
+        static_ffmpeg.add_paths()
+    except Exception as exc:
+        raise RuntimeError(
+            "ffmpeg/ffprobe not found. Install FFmpeg on the host "
+            "(https://ffmpeg.org/download.html) or add `static-ffmpeg` to requirements."
+        ) from exc
+
+
 def download_youtube_audio(url: str, out_dir: str) -> str:
     """Download only the audio of ONE video (never a playlist) into out_dir."""
     ydl_opts = {
@@ -48,6 +69,7 @@ def chunk_audio(wav_path: str, chunk_minutes: int = 10) -> list:
 
 
 def process_input(source: str) -> list:
+    _ensure_ffmpeg()
     work_dir = tempfile.mkdtemp(prefix="video_assistant_")
     try:
         if source.startswith(("http://", "https://")):

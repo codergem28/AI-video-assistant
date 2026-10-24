@@ -5,6 +5,8 @@
 yt-dlp>=2024.4.9                  # Download audio from YouTube URLs
 pydub>=0.25.1                     # Audio file manipulation / format conversion
 ffmpeg-python>=0.2.0              # FFmpeg bindings (FFmpeg binary must be installed separately)
+static-ffmpeg>=2.7.0              # Bundled ffmpeg/ffprobe binaries — used automatically on hosts
+                                  # without a system FFmpeg (e.g. Streamlit Community Cloud)
 
 # ── Python 3.13+ compatibility ────────────────────────────────────────────────────
 # stdlib `audioop` was removed in Python 3.13; pydub still imports it at module

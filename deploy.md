@@ -299,7 +299,7 @@ docker compose logs -f app
 
 Fastest way to get a public demo.
 
-1. Push the repo to GitHub (this repo already ships lowercase `requirements.txt` and an `apt.txt`, so Streamlit Cloud detects everything automatically).
+1. Push the repo to GitHub (this repo already ships lowercase `requirements.txt` and a `packages.txt` — Streamlit Cloud installs the listed apt packages, incl. FFmpeg, automatically).
 2. Go to [share.streamlit.io](https://share.streamlit.io) → *Create app* → pick the repo → main file path **`app.py`**.
 3. Under **App settings → Secrets**, add:
    ```
@@ -410,6 +410,7 @@ Keep `.env` out of the way of `git pull` (it is git-ignored, so it will never be
 | `model_not_found` on Groq | Model unavailable to your key | Set `GROQ_MODEL` to a model your key can access |
 | `429 Rate limit exceeded` | Legacy Mistral issue / too many LLM calls | Ensure `GROQ_API_KEY` is set; lower `LLM_RPS` |
 | FFmpeg errors during download/convert | ffmpeg binary missing | `apt install ffmpeg` / `brew install ffmpeg`; verify `ffmpeg -version` |
+| `ffprobe and ffmpeg not found` on Streamlit Cloud | The host has no system FFmpeg (apt packages come from **`packages.txt`**, not `apt.txt`) | Repo ships `packages.txt` (installs ffmpeg via apt) **and** a `static-ffmpeg` pip fallback in `utils/audio_processor.py` — either one satisfies the pipeline |
 | `SARVAM_API_KEY is not set` | `hinglish` selected without key | Set `SARVAM_API_KEY` or use `english` |
 | Streamlit loads but UI is blank/spins behind nginx | Missing websocket upgrade headers | Copy the `proxy_set_header Upgrade/Connection` block exactly |
 | `Killed` / OOM on long videos | Too little RAM for torch+Whisper | Use `WHISPER_MODEL=tiny`/`base`, add swap, or raise `MemoryMax` |
