@@ -1,8 +1,7 @@
 import streamlit as st
 import time
 from dotenv import load_dotenv
-from utils.audio_processor import process_input,cleanup_files
-from core.transcriber import transcribe_all
+from core.transcriber import get_transcript
 from core.analyzer import analyze
 from core.rag_engine import build_rag_chain, ask_question
 
@@ -379,14 +378,12 @@ if run_btn:
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
             update_step("audio", "active")
-            chunks = process_input(source)
-            update_step("audio", "done")
-
             update_step("transcript", "active")
-            try:
-                transcript = transcribe_all(chunks, language)
-            finally:
-                cleanup_files(chunks)  # delete the temp audio even if transcription fails
+            # YouTube URLs are caption-first (no audio download → no HTTP 403 from
+            # cloud IPs); local files and videos without captions still use
+            # download + Whisper/Sarvam.
+            transcript = get_transcript(source, language)
+            update_step("audio", "done")
             update_step("transcript", "done")
 
             update_step("title", "active")
@@ -425,7 +422,15 @@ if run_btn:
             for k in ["audio","transcript","title","summary","extract","rag"]:
                 if st.session_state.pipeline_steps.get(k) == "active":
                     st.session_state.pipeline_steps[k] = "pending"
-            progress_placeholder.error(f"❌ Error: {e}")
+            if "403" in str(e):
+                progress_placeholder.error(
+                    "❌ This video has no usable captions, and YouTube blocked the audio "
+                    "download from this server (HTTP 403 — YouTube blocks cloud-server "
+                    "IPs). Try another video, or run the app locally "
+                    "(`streamlit run app.py`) for this URL."
+                )
+            else:
+                progress_placeholder.error(f"❌ Error: {e}")
 
 # ── Results ──────────────────────────────────────────────────────────────────────
 if st.session_state.result:

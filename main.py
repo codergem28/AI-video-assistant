@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
-from utils.audio_processor import process_input,cleanup_files
-from core.transcriber import transcribe_all
+from core.transcriber import get_transcript
 from core.analyzer import analyze
 from core.rag_engine import build_rag_chain, ask_question
 
@@ -10,11 +9,9 @@ load_dotenv()
 def run_pipeline(source: str, language: str = "english") -> dict:
     print("starting AI Video Assistant")
 
-    chunks = process_input(source)
-    try:
-        transcript = transcribe_all(chunks, language)
-    finally:
-        cleanup_files(chunks)  # deletes the audio even if transcription fails
+    # YouTube URLs use captions first (no download); falls back to
+    # download + Whisper/Sarvam for videos without captions and local files.
+    transcript = get_transcript(source, language)
 
     print(f"raw transcription (first 300 characters ) {transcript[:300]}")
 

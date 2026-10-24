@@ -4,6 +4,11 @@ import whisper
 import os
 import requests
 from pydub import AudioSegment
+from urllib.parse import parse_qs, urlparse
+
+from youtube_transcript_api import YouTubeTranscriptApi
+
+from utils.audio_processor import process_input, cleanup_files
 
 # Sarvam's sync STT-translate API rejects audio longer than 30s.
 # We slice each chunk into 25s pieces (with a 5s safety margin) before sending.
@@ -103,6 +108,93 @@ def transcribe_chunk(chunk_path: str, language: str = "english") -> str:
     if language.lower() == "hinglish":
         return transcribe_chunk_sarvam(chunk_path)
     return transcribe_chunk_whisper(chunk_path)
+
+
+_YT_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"}
+
+
+def _youtube_video_id(url: str) -> str | None:
+    """Extract the video id from a YouTube URL (watch, shorts, embed, youtu.be)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return None
+    host = (parsed.hostname or "").lower()
+    if host == "youtu.be":
+        return parsed.path.lstrip("/").split("/")[0] or None
+    if host in _YT_HOSTS:
+        value = parse_qs(parsed.query).get("v")
+        if value:
+            return value[0]
+        parts = parsed.path.strip("/").split("/")
+        if len(parts) >= 2 and parts[0] in ("shorts", "embed", "live", "v"):
+            return parts[1]
+    return None
+
+
+def _fetch_captions(video_id: str, language: str = "english") -> str | None:
+    """Return the video's captions as English text WITHOUT downloading any media.
+
+    Prefers existing English captions; otherwise translates the first available
+    transcript to English. Returns None when captions are unusable so the caller
+    can fall back to the download + transcribe path.
+    """
+    try:
+        listing = YouTubeTranscriptApi().list(video_id)
+    except Exception as exc:
+        print(f"  Captions unavailable ({exc})")
+        return None
+
+    try:
+        transcript = None
+        for t in listing:
+            if t.language_code.lower().startswith("en"):
+                transcript = t
+                break
+        if transcript is None:  # no English captions — try translating any of them
+            for t in listing:
+                try:
+                    transcript = t.translate("en")
+                    break
+                except Exception:
+                    continue
+        if transcript is None:
+            print("  No English or translatable captions found.")
+            return None
+
+        fetched = transcript.fetch()
+        text = " ".join(
+            s.text.strip() for s in fetched if getattr(s, "text", "").strip()
+        )
+        return text.strip() or None
+    except Exception as exc:
+        print(f"  Caption fetch failed ({exc})")
+        return None
+
+
+def get_transcript(source: str, language: str = "english") -> str:
+    """Get the transcript for a YouTube URL or local file.
+
+    YouTube links use the video's own captions when available — no video is
+    downloaded (works on cloud hosts where YouTube blocks media downloads).
+    Videos without captions, and local files, use the existing
+    download/extract + Whisper/Sarvam path.
+    """
+    if source.startswith(("http://", "https://")):
+        video_id = _youtube_video_id(source)
+        if video_id:
+            print("YouTube link detected — trying captions (no download)...")
+            captions = _fetch_captions(video_id, language)
+            if captions:
+                print("Using YouTube captions (no video download).")
+                return captions
+            print("No usable captions — falling back to audio download + transcription.")
+
+    chunks = process_input(source)
+    try:
+        return transcribe_all(chunks, language)
+    finally:
+        cleanup_files(chunks)
 
 
 def transcribe_all(chunks: list, language: str = "english") -> str:
